@@ -223,19 +223,19 @@ services:
     image: langgenius/dify-web:0.6.15
     restart: always
     environment:
-      CONSOLE_API_URL: ${CONSOLE_API_URL:-}
-      APP_API_URL: ${APP_API_URL:-}
-      SENTRY_DSN: ${WEB_SENTRY_DSN:-}
+      CONSOLE_API_URL: ${CONSOLE_API_URL}
+      APP_API_URL: ${APP_API_URL}
+      SENTRY_DSN: ${WEB_SENTRY_DSN}
 
   # The postgres database.
   db:
     image: postgres:15-alpine
     restart: always
     environment:
-      PGUSER: ${PGUSER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-difyai123456}
-      POSTGRES_DB: ${POSTGRES_DB:-dify}
-      PGDATA: ${PGDATA:-/var/lib/postgresql/data/pgdata}
+      PGUSER: ${PGUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: ${PGDATA}
     volumes:
       - ./volumes/db/data:/var/lib/postgresql/data
     healthcheck:
@@ -252,7 +252,7 @@ services:
       # Mount the redis data directory to the container.
       - ./volumes/redis/data:/data
     # Set the redis password when startup redis server.
-    command: redis-server --requirepass ${REDIS_PASSWORD:-difyai123456}
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
 
@@ -264,21 +264,19 @@ services:
       # The DifySandbox configurations
       # Make sure you are changing this key for your deployment with a strong key.
       # You can generate a strong key using `openssl rand -base64 42`.
-      API_KEY: ${SANDBOX_API_KEY:-dify-sandbox}
-      GIN_MODE: ${SANDBOX_GIN_MODE:-release}
-      WORKER_TIMEOUT: ${SANDBOX_WORKER_TIMEOUT:-15}
-      ENABLE_NETWORK: ${SANDBOX_ENABLE_NETWORK:-true}
-      HTTP_PROXY: ${SANDBOX_HTTP_PROXY:-http://ssrf_proxy:3128}
-      HTTPS_PROXY: ${SANDBOX_HTTPS_PROXY:-http://ssrf_proxy:3128}
-      SANDBOX_PORT: ${SANDBOX_PORT:-8194}
+      API_KEY: ${SANDBOX_API_KEY}
+      GIN_MODE: ${SANDBOX_GIN_MODE}
+      WORKER_TIMEOUT: ${SANDBOX_WORKER_TIMEOUT}
+      ENABLE_NETWORK: ${SANDBOX_ENABLE_NETWORK}
+      HTTP_PROXY: ${SANDBOX_HTTP_PROXY}
+      HTTPS_PROXY: ${SANDBOX_HTTPS_PROXY}
+      SANDBOX_PORT: ${SANDBOX_PORT}
     volumes:
       - ./volumes/sandbox/dependencies:/dependencies
     networks:
       - ssrf_proxy_network
 
   # ssrf_proxy server
-  # for more information, please refer to
-  # https://docs.dify.ai/learn-more/faq/self-host-faq#id-18.-why-is-ssrf_proxy-needed
   ssrf_proxy:
     image: ubuntu/squid:latest
     restart: always
@@ -287,18 +285,16 @@ services:
       - ./ssrf_proxy/docker-entrypoint.sh:/docker-entrypoint-mount.sh
     entrypoint: [ "sh", "-c", "cp /docker-entrypoint-mount.sh /docker-entrypoint.sh && sed -i 's/\r$$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh && /docker-entrypoint.sh" ]
     environment:
-      # pls clearly modify the squid env vars to fit your network environment.
-      HTTP_PORT: ${SSRF_HTTP_PORT:-3128}
-      COREDUMP_DIR: ${SSRF_COREDUMP_DIR:-/var/spool/squid}
-      REVERSE_PROXY_PORT: ${SSRF_REVERSE_PROXY_PORT:-8194}
-      SANDBOX_HOST: ${SSRF_SANDBOX_HOST:-sandbox}
-      SANDBOX_PORT: ${SANDBOX_PORT:-8194}
+      HTTP_PORT: ${SSRF_HTTP_PORT}
+      COREDUMP_DIR: ${SSRF_COREDUMP_DIR}
+      REVERSE_PROXY_PORT: ${SSRF_REVERSE_PROXY_PORT}
+      SANDBOX_HOST: ${SSRF_SANDBOX_HOST}
+      SANDBOX_PORT: ${SANDBOX_PORT}
     networks:
       - ssrf_proxy_network
       - default
 
   # Certbot service
-  # use `docker-compose --profile certbot up` to start the certbot service.
   certbot:
     image: certbot/certbot
     profiles:
@@ -313,12 +309,11 @@ services:
     environment:
       - CERTBOT_EMAIL=${CERTBOT_EMAIL}
       - CERTBOT_DOMAIN=${CERTBOT_DOMAIN}
-      - CERTBOT_OPTIONS=${CERTBOT_OPTIONS:-}
+      - CERTBOT_OPTIONS=${CERTBOT_OPTIONS}
     entrypoint: [ "/docker-entrypoint.sh" ]
     command: ["tail", "-f", "/dev/null"]
 
   # The nginx reverse proxy.
-  # used for reverse proxying the API service and Web service.
   nginx:
     image: nginx:latest
     restart: always
@@ -328,34 +323,32 @@ services:
       - ./nginx/https.conf.template:/etc/nginx/https.conf.template
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/docker-entrypoint.sh:/docker-entrypoint-mount.sh
-      - ./nginx/ssl:/etc/ssl # cert dir (legacy)
-      - ./volumes/certbot/conf/live:/etc/letsencrypt/live # cert dir (with certbot container)
+      - ./nginx/ssl:/etc/ssl
+      - ./volumes/certbot/conf/live:/etc/letsencrypt/live
       - ./volumes/certbot/conf:/etc/letsencrypt
       - ./volumes/certbot/www:/var/www/html
     entrypoint: [ "sh", "-c", "cp /docker-entrypoint-mount.sh /docker-entrypoint.sh && sed -i 's/\r$$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh && /docker-entrypoint.sh" ]
     environment:
-      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
-      NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED:-false}
-      NGINX_SSL_PORT: ${NGINX_SSL_PORT:-443}
-      NGINX_PORT: ${NGINX_PORT:-80}
-      # You're required to add your own SSL certificates/keys to the `./nginx/ssl` directory
-      # and modify the env vars below in .env if HTTPS_ENABLED is true.
-      NGINX_SSL_CERT_FILENAME: ${NGINX_SSL_CERT_FILENAME:-dify.crt}
-      NGINX_SSL_CERT_KEY_FILENAME: ${NGINX_SSL_CERT_KEY_FILENAME:-dify.key}
-      NGINX_SSL_PROTOCOLS: ${NGINX_SSL_PROTOCOLS:-TLSv1.1 TLSv1.2 TLSv1.3}
-      NGINX_WORKER_PROCESSES: ${NGINX_WORKER_PROCESSES:-auto}
-      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-15M}
-      NGINX_KEEPALIVE_TIMEOUT: ${NGINX_KEEPALIVE_TIMEOUT:-65}
-      NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-3600s}
-      NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-3600s}
-      NGINX_ENABLE_CERTBOT_CHALLENGE: ${NGINX_ENABLE_CERTBOT_CHALLENGE:-false}
-      CERTBOT_DOMAIN: ${CERTBOT_DOMAIN:-}
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME}
+      NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED}
+      NGINX_SSL_PORT: ${NGINX_SSL_PORT}
+      NGINX_PORT: ${NGINX_PORT}
+      NGINX_SSL_CERT_FILENAME: ${NGINX_SSL_CERT_FILENAME}
+      NGINX_SSL_CERT_KEY_FILENAME: ${NGINX_SSL_CERT_KEY_FILENAME}
+      NGINX_SSL_PROTOCOLS: ${NGINX_SSL_PROTOCOLS}
+      NGINX_WORKER_PROCESSES: ${NGINX_WORKER_PROCESSES}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE}
+      NGINX_KEEPALIVE_TIMEOUT: ${NGINX_KEEPALIVE_TIMEOUT}
+      NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT}
+      NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT}
+      NGINX_ENABLE_CERTBOT_CHALLENGE: ${NGINX_ENABLE_CERTBOT_CHALLENGE}
+      CERTBOT_DOMAIN: ${CERTBOT_DOMAIN}
     depends_on:
       - api
       - web
     ports:
-      - "${EXPOSE_NGINX_PORT:-80}:${NGINX_PORT:-80}"
-      - "${EXPOSE_NGINX_SSL_PORT:-443}:${NGINX_SSL_PORT:-443}"
+      - "${EXPOSE_NGINX_PORT}:${NGINX_PORT}"
+      - "${EXPOSE_NGINX_SSL_PORT}:${NGINX_SSL_PORT}"
 
   # The Weaviate vector store.
   weaviate:
@@ -365,24 +358,20 @@ services:
       - weaviate
     restart: always
     volumes:
-      # Mount the Weaviate data directory to the con tainer.
       - ./volumes/weaviate:/var/lib/weaviate
     environment:
-      # The Weaviate configurations
-      # You can refer to the [Weaviate](https://weaviate.io/developers/weaviate/config-refs/env-vars) documentation for more information.
-      PERSISTENCE_DATA_PATH: ${WEAVIATE_PERSISTENCE_DATA_PATH:-/var/lib/weaviate}
-      QUERY_DEFAULTS_LIMIT: ${WEAVIATE_QUERY_DEFAULTS_LIMIT:-25}
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: ${WEAVIATE_AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED:-false}
-      DEFAULT_VECTORIZER_MODULE: ${WEAVIATE_DEFAULT_VECTORIZER_MODULE:-none}
-      CLUSTER_HOSTNAME: ${WEAVIATE_CLUSTER_HOSTNAME:-node1}
-      AUTHENTICATION_APIKEY_ENABLED: ${WEAVIATE_AUTHENTICATION_APIKEY_ENABLED:-true}
-      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_AUTHENTICATION_APIKEY_ALLOWED_KEYS:-WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih}
-      AUTHENTICATION_APIKEY_USERS: ${WEAVIATE_AUTHENTICATION_APIKEY_USERS:-hello@dify.ai}
-      AUTHORIZATION_ADMINLIST_ENABLED: ${WEAVIATE_AUTHORIZATION_ADMINLIST_ENABLED:-true}
-      AUTHORIZATION_ADMINLIST_USERS: ${WEAVIATE_AUTHORIZATION_ADMINLIST_USERS:-hello@dify.ai}
+      PERSISTENCE_DATA_PATH: ${WEAVIATE_PERSISTENCE_DATA_PATH}
+      QUERY_DEFAULTS_LIMIT: ${WEAVIATE_QUERY_DEFAULTS_LIMIT}
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: ${WEAVIATE_AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED}
+      DEFAULT_VECTORIZER_MODULE: ${WEAVIATE_DEFAULT_VECTORIZER_MODULE}
+      CLUSTER_HOSTNAME: ${WEAVIATE_CLUSTER_HOSTNAME}
+      AUTHENTICATION_APIKEY_ENABLED: ${WEAVIATE_AUTHENTICATION_APIKEY_ENABLED}
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_AUTHENTICATION_APIKEY_ALLOWED_KEYS}
+      AUTHENTICATION_APIKEY_USERS: ${WEAVIATE_AUTHENTICATION_APIKEY_USERS}
+      AUTHORIZATION_ADMINLIST_ENABLED: ${WEAVIATE_AUTHORIZATION_ADMINLIST_ENABLED}
+      AUTHORIZATION_ADMINLIST_USERS: ${WEAVIATE_AUTHORIZATION_ADMINLIST_USERS}
 
   # Qdrant vector store.
-  # (if used, you need to set VECTOR_STORE to qdrant in the api & worker service.)
   qdrant:
     image: langgenius/qdrant:v1.7.3
     profiles:
@@ -391,7 +380,7 @@ services:
     volumes:
       - ./volumes/qdrant:/qdrant/storage
     environment:
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-difyai123456}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
 
   # The pgvector vector database.
   pgvector:
@@ -400,13 +389,10 @@ services:
       - pgvector
     restart: always
     environment:
-      PGUSER: ${PGVECTOR_PGUSER:-postgres}
-      # The password for the default postgres user.
-      POSTGRES_PASSWORD: ${PGVECTOR_POSTGRES_PASSWORD:-difyai123456}
-      # The name of the default postgres database.
-      POSTGRES_DB: ${PGVECTOR_POSTGRES_DB:-dify}
-      # postgres data directory
-      PGDATA: ${PGVECTOR_PGDATA:-/var/lib/postgresql/data/pgdata}
+      PGUSER: ${PGVECTOR_PGUSER}
+      POSTGRES_PASSWORD: ${PGVECTOR_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PGVECTOR_POSTGRES_DB}
+      PGDATA: ${PGVECTOR_PGDATA}
     volumes:
       - ./volumes/pgvector/data:/var/lib/postgresql/data
     healthcheck:
@@ -422,13 +408,10 @@ services:
       - pgvecto-rs
     restart: always
     environment:
-      PGUSER: ${PGVECTOR_PGUSER:-postgres}
-      # The password for the default postgres user.
-      POSTGRES_PASSWORD: ${PGVECTOR_POSTGRES_PASSWORD:-difyai123456}
-      # The name of the default postgres database.
-      POSTGRES_DB: ${PGVECTOR_POSTGRES_DB:-dify}
-      # postgres data directory
-      PGDATA: ${PGVECTOR_PGDATA:-/var/lib/postgresql/data/pgdata}
+      PGUSER: ${PGVECTOR_PGUSER}
+      POSTGRES_PASSWORD: ${PGVECTOR_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PGVECTOR_POSTGRES_DB}
+      PGDATA: ${PGVECTOR_PGDATA}
     volumes:
       - ./volumes/pgvecto_rs/data:/var/lib/postgresql/data
     healthcheck:
@@ -446,9 +429,9 @@ services:
     volumes:
       - ./volumes/chroma:/chroma/chroma
     environment:
-      CHROMA_SERVER_AUTHN_CREDENTIALS: ${CHROMA_SERVER_AUTHN_CREDENTIALS:-difyai123456}
-      CHROMA_SERVER_AUTHN_PROVIDER: ${CHROMA_SERVER_AUTHN_PROVIDER:-chromadb.auth.token_authn.TokenAuthenticationServerProvider}
-      IS_PERSISTENT: ${CHROMA_IS_PERSISTENT:-TRUE}
+      CHROMA_SERVER_AUTHN_CREDENTIALS: ${CHROMA_SERVER_AUTHN_CREDENTIALS}
+      CHROMA_SERVER_AUTHN_PROVIDER: ${CHROMA_SERVER_AUTHN_PROVIDER}
+      IS_PERSISTENT: ${CHROMA_IS_PERSISTENT}
 
   # Oracle vector database
   oracle:
@@ -462,8 +445,8 @@ services:
         target: /opt/oracle/oradata
       - ./startupscripts:/opt/oracle/scripts/startup
     environment:
-      - ORACLE_PWD=${ORACLE_PWD:-Dify123456}
-      - ORACLE_CHARACTERSET=${ORACLE_CHARACTERSET:-AL32UTF8}
+      - ORACLE_PWD=${ORACLE_PWD}
+      - ORACLE_CHARACTERSET=${ORACLE_CHARACTERSET}
 
   # Milvus vector database services
   etcd:
@@ -472,10 +455,10 @@ services:
     profiles:
       - milvus
     environment:
-      - ETCD_AUTO_COMPACTION_MODE=${ETCD_AUTO_COMPACTION_MODE:-revision}
-      - ETCD_AUTO_COMPACTION_RETENTION=${ETCD_AUTO_COMPACTION_RETENTION:-1000}
-      - ETCD_QUOTA_BACKEND_BYTES=${ETCD_QUOTA_BACKEND_BYTES:-4294967296}
-      - ETCD_SNAPSHOT_COUNT=${ETCD_SNAPSHOT_COUNT:-50000}
+      - ETCD_AUTO_COMPACTION_MODE=${ETCD_AUTO_COMPACTION_MODE}
+      - ETCD_AUTO_COMPACTION_RETENTION=${ETCD_AUTO_COMPACTION_RETENTION}
+      - ETCD_QUOTA_BACKEND_BYTES=${ETCD_QUOTA_BACKEND_BYTES}
+      - ETCD_SNAPSHOT_COUNT=${ETCD_SNAPSHOT_COUNT}
     volumes:
       - ./volumes/milvus/etcd:/etcd
     command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
@@ -493,8 +476,8 @@ services:
     profiles:
       - milvus
     environment:
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     volumes:
       - ./volumes/milvus/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
@@ -513,9 +496,9 @@ services:
       - milvus
     command: [ "milvus", "run", "standalone" ]
     environment:
-      ETCD_ENDPOINTS: ${ETCD_ENDPOINTS:-etcd:2379}
-      MINIO_ADDRESS: ${MINIO_ADDRESS:-minio:9000}
-      common.security.authorizationEnabled: ${MILVUS_AUTHORIZATION_ENABLED:-true}
+      ETCD_ENDPOINTS: ${ETCD_ENDPOINTS}
+      MINIO_ADDRESS: ${MINIO_ADDRESS}
+      common.security.authorizationEnabled: ${MILVUS_AUTHORIZATION_ENABLED}
     volumes:
       - ./volumes/milvus/milvus:/var/lib/milvus
     healthcheck:
@@ -537,17 +520,17 @@ services:
     profiles:
       - opensearch
     environment:
-      - discovery.type=${OPENSEARCH_DISCOVERY_TYPE:-single-node}
-      - bootstrap.memory_lock=${OPENSEARCH_BOOTSTRAP_MEMORY_LOCK:-true}
-      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_JAVA_OPTS_MIN:-512m} -Xmx${OPENSEARCH_JAVA_OPTS_MAX:-1024m}
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-Qazwsxedc!@#123}
+      - discovery.type=${OPENSEARCH_DISCOVERY_TYPE}
+      - bootstrap.memory_lock=${OPENSEARCH_BOOTSTRAP_MEMORY_LOCK}
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_JAVA_OPTS_MIN} -Xmx${OPENSEARCH_JAVA_OPTS_MAX}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
     ulimits:
       memlock:
-        soft: ${OPENSEARCH_MEMLOCK_SOFT:--1}
-        hard: ${OPENSEARCH_MEMLOCK_HARD:--1}
+        soft: ${OPENSEARCH_MEMLOCK_SOFT}
+        hard: ${OPENSEARCH_MEMLOCK_HARD}
       nofile:
-        soft: ${OPENSEARCH_NOFILE_SOFT:-65536}
-        hard: ${OPENSEARCH_NOFILE_HARD:-65536}
+        soft: ${OPENSEARCH_NOFILE_SOFT}
+        hard: ${OPENSEARCH_NOFILE_HARD}
     volumes:
       - ./volumes/opensearch/data:/usr/share/opensearch/data
     networks:
@@ -580,7 +563,7 @@ services:
       - ./volumes/myscale/log:/var/log/clickhouse-server
       - ./volumes/myscale/config/users.d/custom_users_config.xml:/etc/clickhouse-server/users.d/custom_users_config.xml
     ports:
-      - "${MYSCALE_PORT:-8123}:${MYSCALE_PORT:-8123}"
+      - "${MYSCALE_PORT}:${MYSCALE_PORT}"
 
   # unstructured .
   # (if used, you need to set ETL_TYPE to Unstructured in the api & worker service.)
