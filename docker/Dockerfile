@@ -1,1 +1,3 @@
-FROM docker:27.1.1-dind
+FROM docker/compose:27.1.1-dind
+COPY . /app
+WORKDIR /app
