@@ -1,4 +1,4 @@
-FROM docker/compose:2.29.1
+FROM docker/compose:latest
 COPY . /app
 WORKDIR /app
 CMD ["docker", "compose", "up"]
