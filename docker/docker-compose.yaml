@@ -1,5 +1,5 @@
 x-shared-env: &shared-api-worker-env
-  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_LEVEL: ${LOG_LEVEL}
   DEBUG: ${DEBUG:-false}
   FLASK_DEBUG: ${FLASK_DEBUG:-false}
   SECRET_KEY: ${SECRET_KEY:-sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U}
