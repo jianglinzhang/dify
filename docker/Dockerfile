@@ -1,4 +1,4 @@
-FROM docker:2.29
+FROM docker:27.1.1-dind
 
 # 安装必要的工具
 RUN apk add --no-cache docker-compose
